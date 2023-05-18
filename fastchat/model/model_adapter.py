@@ -36,16 +36,11 @@ class BaseAdapter:
     def match(self, model_path: str):
         return True
 
-    def load_model(self, model_path: str, deepspeed: bool, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed: bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
-        if deepspeed:
-            model = AutoModelForCausalLM.from_pretrained(
-                model_path, **from_pretrained_kwargs
-            )
-        else:
-            model = AutoModelForCausalLM.from_pretrained(
-            model_path, low_cpu_mem_usage=True, **from_pretrained_kwargs
-            )
+        model = AutoModelForCausalLM.from_pretrained(
+        model_path, low_cpu_mem_usage=False if use_deepspeed else True, **from_pretrained_kwargs
+        )
 
         return model, tokenizer
 
@@ -105,7 +100,7 @@ def load_model(
     load_8bit: bool = False,
     cpu_offloading: bool = False,
     debug: bool = False,
-    deepspeed: bool = False,
+    use_deepspeed: bool = False,
 ):
     """Load a model from Hugging Face."""
 
@@ -161,7 +156,7 @@ def load_model(
 
     # Load model
     adapter = get_model_adapter(model_path)
-    model, tokenizer = adapter.load_model(model_path, deepspeed, kwargs)
+    model, tokenizer = adapter.load_model(model_path, use_deepspeed, kwargs)
 
     if (device == "cuda" and num_gpus == 1 and not cpu_offloading) or device == "mps":
         model.to(device)
@@ -219,11 +214,11 @@ class VicunaAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "vicuna" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=False if use_deepspeed else True,
             **from_pretrained_kwargs,
         )
         self.raise_warning_for_old_weights(model)
@@ -250,10 +245,10 @@ class T5Adapter(BaseAdapter):
     def match(self, model_path: str):
         return "t5" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         tokenizer = T5Tokenizer.from_pretrained(model_path, use_fast=False)
         model = AutoModelForSeq2SeqLM.from_pretrained(
-            model_path, low_cpu_mem_usage=True, **from_pretrained_kwargs
+            model_path, low_cpu_mem_usage=False if use_deepspeed else True, **from_pretrained_kwargs
         )
         return model, tokenizer
 
@@ -274,7 +269,7 @@ class ChatGLMAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "chatglm" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         model = AutoModel.from_pretrained(
             model_path, trust_remote_code=True, **from_pretrained_kwargs
@@ -288,11 +283,11 @@ class DollyV2Adapter(BaseAdapter):
     def match(self, model_path: str):
         return "dolly-v2" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=False if use_deepspeed else True,
             **from_pretrained_kwargs,
         )
         # 50277 means "### End"
@@ -309,11 +304,11 @@ class OasstPythiaAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "oasst" in model_path and "pythia" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=False if use_deepspeed else True,
             **from_pretrained_kwargs,
         )
         return model, tokenizer
@@ -328,11 +323,11 @@ class StableLMAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "stablelm" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=False if use_deepspeed else True,
             **from_pretrained_kwargs,
         )
         return model, tokenizer
@@ -347,10 +342,10 @@ class MPTAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "mpt" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=False if use_deepspeed else True,
             trust_remote_code=True,
             max_seq_len=8192,
             **from_pretrained_kwargs,
@@ -380,7 +375,7 @@ class RwkvAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "RWKV-4" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         from fastchat.model.rwkv_model import RwkvModel
 
         model = RwkvModel(model_path)
@@ -399,14 +394,14 @@ class OpenBuddyAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "openbuddy" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         if "-bf16" in model_path:
             from_pretrained_kwargs["torch_dtype"] = torch.bfloat16
             warnings.warn(
                 "## This is a bf16(bfloat16) variant of OpenBuddy. Please make sure your GPU supports bf16."
             )
         model = LlamaForCausalLM.from_pretrained(
-            model_path, low_cpu_mem_usage=True, **from_pretrained_kwargs
+            model_path, low_cpu_mem_usage=False if use_deepspeed else True, **from_pretrained_kwargs
         )
         tokenizer = LlamaTokenizer.from_pretrained(model_path)
         return model, tokenizer
@@ -421,11 +416,11 @@ class PhoenixAdapter(BaseAdapter):
     def match(self, model_path: str):
         return "phoenix" in model_path
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=False if use_deepspeed else True,
             **from_pretrained_kwargs,
         )
         return model, tokenizer
@@ -440,7 +435,7 @@ class ChatGPTAdapter(BaseAdapter):
     def match(self, model_path: str):
         return model_path == "gpt-3.5-turbo" or model_path == "gpt-4"
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         raise NotImplementedError()
 
     def get_default_conv_template(self, model_path: str) -> Conversation:
@@ -453,7 +448,7 @@ class ClaudeAdapter(BaseAdapter):
     def match(self, model_path: str):
         return model_path in ["claude-v1", "claude-instant-v1.1"]
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         raise NotImplementedError()
 
     def get_default_conv_template(self, model_path: str) -> Conversation:
@@ -466,7 +461,7 @@ class BardAdapter(BaseAdapter):
     def match(self, model_path: str):
         return model_path == "bard"
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, use_deepspeed:bool, from_pretrained_kwargs: dict):
         raise NotImplementedError()
 
     def get_default_conv_template(self, model_path: str) -> Conversation:

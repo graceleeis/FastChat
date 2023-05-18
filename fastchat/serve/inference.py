@@ -253,9 +253,9 @@ def chat_loop(
         dschf = HfDeepSpeedConfig(ds_config)
     # Model
     model, tokenizer = load_model(
-        model_path, device, num_gpus, max_gpu_memory, load_8bit, cpu_offloading, debug, deepspeed
+        model_path, device, num_gpus, max_gpu_memory, load_8bit, cpu_offloading, debug, use_deepspeed,
     )
-    if deepspeed:
+    if use_deepspeed:
         ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
         ds_engine.module.eval()
         model = ds_engine.module
