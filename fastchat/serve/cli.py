@@ -130,6 +130,7 @@ def main(args):
             args.max_new_tokens,
             chatio,
             args.debug,
+            args.deepspeed,
         )
     except KeyboardInterrupt:
         print("exit...")
@@ -150,6 +151,9 @@ if __name__ == "__main__":
         choices=["simple", "rich"],
         help="Display style.",
     )
+
+    parser.add_argument("--deepspeed", action="store_true", help="Use deepspeed.")
+
     parser.add_argument("--debug", action="store_true", help="Print debug information")
     args = parser.parse_args()
     main(args)

@@ -36,11 +36,17 @@ class BaseAdapter:
     def match(self, model_path: str):
         return True
 
-    def load_model(self, model_path: str, from_pretrained_kwargs: dict):
+    def load_model(self, model_path: str, deepspeed: bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
-        model = AutoModelForCausalLM.from_pretrained(
+        if deepspeed:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_path, **from_pretrained_kwargs
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
             model_path, low_cpu_mem_usage=True, **from_pretrained_kwargs
-        )
+            )
+
         return model, tokenizer
 
     def get_default_conv_template(self, model_path: str) -> Conversation:
@@ -99,6 +105,7 @@ def load_model(
     load_8bit: bool = False,
     cpu_offloading: bool = False,
     debug: bool = False,
+    deepspeed: bool = False,
 ):
     """Load a model from Hugging Face."""
 
@@ -154,7 +161,7 @@ def load_model(
 
     # Load model
     adapter = get_model_adapter(model_path)
-    model, tokenizer = adapter.load_model(model_path, kwargs)
+    model, tokenizer = adapter.load_model(model_path, deepspeed, kwargs)
 
     if (device == "cuda" and num_gpus == 1 and not cpu_offloading) or device == "mps":
         model.to(device)

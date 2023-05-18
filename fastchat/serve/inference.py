@@ -26,6 +26,10 @@ from transformers.generation.logits_process import (
     TopPLogitsWarper,
 )
 
+import deepspeed
+import torch.distributed as dist
+from transformers.deepspeed import HfDeepSpeedConfig
+
 from fastchat.conversation import get_conv_template, SeparatorStyle
 from fastchat.model.model_adapter import load_model, get_conversation_template
 from fastchat.model.chatglm_model import chatglm_generate_stream
@@ -77,6 +81,7 @@ def generate_stream(
         max_src_len = context_len - max_new_tokens - 8
 
     input_ids = input_ids[-max_src_len:]
+
 
     if model.config.is_encoder_decoder:
         encoder_output = model.encoder(
@@ -239,11 +244,22 @@ def chat_loop(
     max_new_tokens: int,
     chatio: ChatIO,
     debug: bool,
+    use_deepspeed: bool,
 ):
+    if use_deepspeed:
+        deepspeed.init_distributed("nccl")
+        rank = dist.get_rank()
+        ds_config = "/home/xiaoranli/FastChat/fastchat/serve/deepspeed/ds_config.json"
+        dschf = HfDeepSpeedConfig(ds_config)
     # Model
     model, tokenizer = load_model(
-        model_path, device, num_gpus, max_gpu_memory, load_8bit, cpu_offloading, debug
+        model_path, device, num_gpus, max_gpu_memory, load_8bit, cpu_offloading, debug, deepspeed
     )
+    if deepspeed:
+        ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
+        ds_engine.module.eval()
+        model = ds_engine.module
+
     is_chatglm = "chatglm" in str(type(model)).lower()
 
     # Chat
