@@ -245,8 +245,9 @@ def chat_loop(
     chatio: ChatIO,
     debug: bool,
     use_deepspeed: bool,
+    zero_offload: bool,
 ):
-    if use_deepspeed:
+    if use_deepspeed and zero_offload:
         deepspeed.init_distributed("nccl")
         rank = dist.get_rank()
         ds_config = "/home/xiaoranli/FastChat/fastchat/serve/deepspeed/ds_config.json"
@@ -256,9 +257,13 @@ def chat_loop(
         model_path, device, num_gpus, max_gpu_memory, load_8bit, cpu_offloading, debug, use_deepspeed,
     )
     if use_deepspeed:
-        ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
-        ds_engine.module.eval()
-        model = ds_engine.module
+        if zero_offload:
+            ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
+            ds_engine.module.eval()
+            model = ds_engine.module
+        else:
+            ds_engine = deepspeed.init_inference(model=model, dtype=torch.half, replace_with_kernel_inject=True)
+            model = ds_engine.module
 
     is_chatglm = "chatglm" in str(type(model)).lower()
 
