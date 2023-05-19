@@ -1,0 +1,15 @@
+{
+    "train_batch_size": 16,
+    "zero_optimization": {
+        "stage": 3,
+        "offload_param": {
+            "device": "cpu",
+            "pin_memory": true
+        }
+    },
+    "zero_allow_untested_optimizer": true,
+    "fp16": {
+        "enabled": true,
+        "initial_scale_power": 12
+    }
+}
