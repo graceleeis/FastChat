@@ -104,12 +104,17 @@ class RichChatIO(ChatIO):
 
 
 def main(args):
-    if args.gpus:
-        if len(args.gpus.split(",")) < args.num_gpus:
-            raise ValueError(
-                f"Larger --num-gpus ({args.num_gpus}) than --gpus {args.gpus}!"
-            )
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+    use_deepspeed = False
+    if args.local_rank is not None:
+        use_deepspeed = True
+        args.gpus = int(os.getenv('WORLD_SIZE', '1'))
+    else:
+        if args.gpus:
+            if len(args.gpus.split(",")) < args.num_gpus:
+                raise ValueError(
+                    f"Larger --num-gpus ({args.num_gpus}) than --gpus {args.gpus}!"
+                )
+            os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
     if args.style == "simple":
         chatio = SimpleChatIO()
@@ -133,6 +138,7 @@ def main(args):
             args.deepspeed,
             args.offload,
             args.meta,
+            args.local_rank,
         )
     except KeyboardInterrupt:
         print("exit...")
@@ -153,6 +159,8 @@ if __name__ == "__main__":
         choices=["simple", "rich"],
         help="Display style.",
     )
+
+    parser.add_argument("--local_rank", type=int, default=-1, help="Local rank.")
 
     parser.add_argument("--deepspeed", action="store_true", help="Use deepspeed.")
 
