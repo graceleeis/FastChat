@@ -3,8 +3,10 @@
 python3 -m fastchat.serve.cli --model-path facebook/opt-30b --deepspeed --offload
 
 ## use deepspeed inference
- python3 -m fastchat.serve.cli --model-path bigscience/bloom-7b1 --deepspeed
+python3 -m fastchat.serve.cli --model-path bigscience/bloom-7b1 --deepspeed
 
+## use deepspeed inference with meta
+python3 -m fastchat.serve.cli --model-path bigscience/bloom-7b1 --deepspeed --meta
 # When to use deepspeed
 When model is big enough for single GPU, which cause OOM
 

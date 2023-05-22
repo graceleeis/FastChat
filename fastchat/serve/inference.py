@@ -33,6 +33,7 @@ from transformers.deepspeed import HfDeepSpeedConfig
 from fastchat.conversation import get_conv_template, SeparatorStyle
 from fastchat.model.model_adapter import load_model, get_conversation_template
 from fastchat.model.chatglm_model import chatglm_generate_stream
+from fastchat.utils import DSPipeline
 
 
 def prepare_logits_processor(
@@ -246,6 +247,7 @@ def chat_loop(
     debug: bool,
     use_deepspeed: bool,
     zero_offload: bool,
+    use_meta: bool,
 ):
     if use_deepspeed and zero_offload:
         deepspeed.init_distributed("nccl")
@@ -253,17 +255,31 @@ def chat_loop(
         ds_config = "/home/xiaoranli/FastChat/fastchat/serve/deepspeed/ds_config.json"
         dschf = HfDeepSpeedConfig(ds_config)
     # Model
-    model, tokenizer = load_model(
-        model_path, device, num_gpus, max_gpu_memory, load_8bit, cpu_offloading, debug, use_deepspeed,
-    )
-    if use_deepspeed:
-        if zero_offload:
-            ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
-            ds_engine.module.eval()
-            model = ds_engine.module
-        else:
-            ds_engine = deepspeed.init_inference(model=model, dtype=torch.half, replace_with_kernel_inject=True)
-            model = ds_engine.module
+    if use_meta:
+        pipe = DSPipeline(model_name=model_path,
+                  dtype=torch.float16,
+                  is_meta=True,
+                  device=0)
+        ds_kwargs = dict(base_dir=pipe.repo_root, checkpoint=pipe.checkpoints_json)
+        model = deepspeed.init_inference(pipe.model,
+                                    dtype=torch.float16,
+                                    mp_size=1,
+                                    replace_with_kernel_inject=True,
+                                    **ds_kwargs
+                                    )
+        tokenizer = pipe.tokenizer
+    else:
+        model, tokenizer = load_model(
+            model_path, device, num_gpus, max_gpu_memory, load_8bit, cpu_offloading, debug, use_deepspeed
+        )
+        if use_deepspeed:
+            if zero_offload:
+                ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
+                ds_engine.module.eval()
+                model = ds_engine.module
+            else:
+                ds_engine = deepspeed.init_inference(model=model, dtype=torch.half, replace_with_kernel_inject=True)
+                model = ds_engine.module
 
     is_chatglm = "chatglm" in str(type(model)).lower()
 

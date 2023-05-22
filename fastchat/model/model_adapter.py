@@ -27,7 +27,8 @@ from fastchat.model.compression import load_compress_model
 from fastchat.model.monkey_patch_non_inplace import (
     replace_llama_attn_with_non_inplace_operations,
 )
-from fastchat.utils import get_gpu_memory
+from fastchat.utils import get_gpu_memory, DSPipeline
+import deepspeed
 
 
 class BaseAdapter:
@@ -38,6 +39,7 @@ class BaseAdapter:
 
     def load_model(self, model_path: str, use_deepspeed: bool, from_pretrained_kwargs: dict):
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+
         model = AutoModelForCausalLM.from_pretrained(
         model_path, low_cpu_mem_usage=False if use_deepspeed else True, **from_pretrained_kwargs
         )
